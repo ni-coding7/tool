@@ -2,109 +2,77 @@ import anthropic
 import json
 import re
 
-# --- CONFIGURAZIONE PROMPT ---
 PAGE_PROMPTS = {
-    "home": """Sei un copywriter SEO esperto. Scrivi i contenuti ottimizzati per la HOME PAGE.
-Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
-
-Dati azienda: {company_block}
-Contesto geo: {geo_block}
-{existing_block}
-
-Genera un JSON con questa struttura esatta:
+    "home": """Scrivi contenuti HOME PAGE. Rispondi SOLO JSON:
 {{
-  "meta_title": "titolo SEO max 60 caratteri con keyword principale e città",
-  "meta_description": "descrizione SEO max 155 caratteri con call to action",
-  "h1": "headline principale della pagina",
-  "intro": "paragrafo introduttivo 80-100 parole, con keyword geografica naturale",
-  "services_overview": "paragrafo 60-80 parole che elenca i servizi principali",
-  "trust_block": "paragrafo 50-70 parole su esperienza, valori, EEAT (esperienza reale, autorevolezza)",
-  "cta_text": "testo call to action 15-20 parole",
-  "faqs": [
-    {{"question": "domanda frequente 1 specifica per settore e geo", "answer": "risposta 40-60 parole"}},
-    {{"question": "domanda frequente 2", "answer": "risposta 40-60 parole"}},
-    {{"question": "domanda frequente 3", "answer": "risposta 40-60 parole"}}
-  ]
+  "meta_title": "{company_block} - {geo_block}",
+  "meta_description": "Descrizione SEO",
+  "h1": "Headline",
+  "intro": "Intro",
+  "services_overview": "Servizi",
+  "trust_block": "Trust",
+  "cta_text": "CTA",
+  "faqs": [{{"question": "Q1", "answer": "A1"}}]
 }}""",
-
-    "chi_siamo": """Sei un copywriter SEO esperto. Scrivi i contenuti per la pagina CHI SIAMO.
-Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
-
-Dati azienda: {company_block}
-{existing_block}
-
-Genera un JSON con questa struttura esatta:
+    "chi_siamo": """Scrivi CHI SIAMO. Rispondi SOLO JSON:
 {{
-  "meta_title": "titolo SEO max 60 caratteri",
-  "meta_description": "descrizione SEO max 155 caratteri",
-  "h1": "headline principale",
-  "storia": "paragrafo storia aziendale 80-100 parole, con anno fondazione se disponibile, EEAT forte",
-  "missione": "paragrafo missione e valori 60-80 parole",
-  "team_intro": "paragrafo sul team 50-70 parole, competenze e professionalità",
-  "perche_noi": "paragrafo differenziazione 60-80 parole con USP reali",
-  "faqs": [
-    {{"question": "domanda su chi siete / esperienza", "answer": "risposta 40-60 parole"}},
-    {{"question": "domanda su qualifiche / certificazioni", "answer": "risposta 40-60 parole"}}
-  ]
+  "meta_title": "Titolo",
+  "meta_description": "Desc",
+  "h1": "H1",
+  "storia": "Storia",
+  "missione": "Missione",
+  "team_intro": "Team",
+  "perche_noi": "USP",
+  "faqs": [{{"question": "Q1", "answer": "A1"}}]
 }}""",
-
-    "servizio": """Sei un copywriter SEO esperto. Scrivi i contenuti per la pagina SERVIZIO.
-Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
-
-Dati azienda: {company_block}
-Servizio specifico: {service_name}
-Contesto geo: {geo_block}
-{existing_block}
-
-Genera un JSON con questa struttura esatta:
+    "servizio": """Scrivi SERVIZIO {service_name}. Rispondi SOLO JSON:
 {{
-  "meta_title": "titolo SEO max 60 caratteri con servizio e città",
-  "meta_description": "descrizione SEO max 155 caratteri con call to action",
-  "h1": "headline principale con servizio e zona geografica",
-  "intro": "paragrafo introduttivo 80-100 parole sul servizio, con riferimento geografico",
-  "cosa_offriamo": "paragrafo 80-100 parole su cosa include il servizio",
-  "perche_sceglierci": "paragrafo 60-80 parole su vantaggi e differenziatori",
-  "processo": "paragrafo 50-70 parole su come lavoriamo, step del processo",
-  "faqs": [
-    {{"question": "domanda specifica sul servizio {service_name}", "answer": "risposta 40-60 parole"}},
-    {{"question": "domanda su prezzi o tempi", "answer": "risposta 40-60 parole"}},
-    {{"question": "domanda su zona di intervento", "answer": "risposta 40-60 parole"}}
-  ]
+  "meta_title": "Titolo",
+  "meta_description": "Desc",
+  "h1": "H1",
+  "intro": "Intro",
+  "cosa_offriamo": "Cosa",
+  "perche_sceglierci": "Vantaggi",
+  "processo": "Step",
+  "faqs": [{{"question": "Q1", "answer": "A1"}}]
 }}""",
-
-    "city_page": """Sei un copywriter SEO esperto. Scrivi i contenuti per una CITY PAGE.
-Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
-
-Dati azienda: {company_block}
-Città target: {city}
-Regione: {region}
-Clima locale: {climate}
-Punti di interesse reali: {pois}
-Servizi offerti: {services}
-
-Genera un JSON con questa struttura esatta:
+    "city_page": """Scrivi CITY PAGE per {city}. Rispondi SOLO JSON:
 {{
-  "meta_title": "titolo SEO max 60 caratteri con servizio + città",
-  "meta_description": "descrizione SEO max 155 caratteri specifica per {city}",
-  "h1": "headline con servizio e {city}",
-  "intro_locale": "paragrafo 80-100 parole specifico per {city}",
-  "servizi_in_citta": "paragrafo 80-100 parole su come operiamo a {city}",
-  "contesto_territoriale": "paragrafo 60-80 parole che usa dati locali",
-  "perche_noi_locale": "paragrafo 50-60 parole con riferimento alla zona di {city}",
-  "faqs": [
-    {{"question": "Operate a {city}?", "answer": "risposta specifica 40-60 parole"}},
-    {{"question": "Quali zone di {city} coprite?", "answer": "risposta 40-60 parole"}}
-  ]
+  "meta_title": "Titolo",
+  "meta_description": "Desc",
+  "h1": "H1",
+  "intro_locale": "Intro",
+  "servizi_in_citta": "Servizi",
+  "contesto_territoriale": "Context",
+  "perche_noi_locale": "Why",
+  "faqs": [{{"question": "Q1", "answer": "A1"}}]
 }}"""
 }
 
-# --- FUNZIONI DI SUPPORTO ---
-
 def build_company_block(company: dict) -> str:
-    """Trasforma il dizionario azienda in un blocco di testo."""
     if not company: return "N/D"
     s = company.get("services", [])
     s_str = ", ".join(s) if isinstance(s, list) else str(s)
-    return f"Nome: {company.get('name', 'N/D')}\nSettore: {company.get('industry', 'N/D')}\nServizi: {s_str}\nTone: {company.get('tone', 'Professionale')}"
+    return f"Nome: {company.get('name', 'N/D')}\nServizi: {s_str}"
 
-def generate_page_content(api_key, model,
+def generate_page_content(api_key, model, page_type, context_data, company=None, **kwargs):
+    client = anthropic.Anthropic(api_key=api_key)
+    prompt_template = PAGE_PROMPTS.get(page_type, PAGE_PROMPTS["home"])
+    if company:
+        context_data["company_block"] = build_company_block(company)
+    if "geo_context" in kwargs and kwargs["geo_context"]:
+        context_data["geo_block"] = str(kwargs["geo_context"])
+    defaults = {"company_block": "N/D", "geo_block": "", "existing_block": "", "service_name": "Servizio", "city": "Città", "region": "", "climate": "N/D", "pois": "N/D", "services": ""}
+    full_context = {**defaults, **context_data}
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=2500,
+            temperature=0.7,
+            messages=[{"role": "user", "content": prompt_template.format(**full_context)}]
+        )
+        raw_text = response.content[0].text
+        clean_json = re.sub(r'```json\s*|\s*```', '', raw_text).strip()
+        return json.loads(clean_json)
+    except Exception as e:
+        raise Exception(f"Errore AI: {str(e)}")
