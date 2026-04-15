@@ -62,7 +62,7 @@ def generate_page_content(api_key, **kwargs):
     """
     Versione ultra-flessibile: accetta la api_key e pesca tutto il resto dai kwargs
     """
-    model = kwargs.get('model', 'claude-3-5-sonnet-20240620')
+model = kwargs.get('model', 'claude-3-haiku-20240307')
     page_type = kwargs.get('page_type', 'home')
     context_data = kwargs.get('context_data', {})
     company = kwargs.get('company')
