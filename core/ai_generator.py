@@ -2,8 +2,7 @@ import anthropic
 import json
 import re
 
-# Rimosso il client globale per evitare errori di inizializzazione senza chiave
-
+# --- CONFIGURAZIONE PROMPT ---
 PAGE_PROMPTS = {
     "home": """Sei un copywriter SEO esperto. Scrivi i contenuti ottimizzati per la HOME PAGE.
 Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
@@ -73,29 +72,6 @@ Genera un JSON con questa struttura esatta:
   ]
 }}""",
 
-    "faq": """Sei un copywriter SEO esperto. Scrivi i contenuti per la pagina FAQ.
-Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
-
-Dati azienda: {company_block}
-Contesto geo: {geo_block}
-
-Genera un JSON con questa struttura esatta:
-{{
-  "meta_title": "titolo SEO max 60 caratteri",
-  "meta_description": "descrizione SEO max 155 caratteri",
-  "h1": "headline principale",
-  "intro": "breve introduzione 40-50 parole",
-  "faqs": [
-    {{"question": "domanda 1 specifica per settore", "answer": "risposta completa 60-80 parole"}},
-    {{"question": "domanda 2 su prezzi/costi", "answer": "risposta 60-80 parole"}},
-    {{"question": "domanda 3 su zone coperte", "answer": "risposta 60-80 parole"}},
-    {{"question": "domanda 4 su tempi/disponibilità", "answer": "risposta 60-80 parole"}},
-    {{"question": "domanda 5 su garanzie", "answer": "risposta 60-80 parole"}},
-    {{"question": "domanda 6 settore specifico", "answer": "risposta 60-80 parole"}},
-    {{"question": "domanda 7 su come contattarvi", "answer": "risposta 60-80 parole"}}
-  ]
-}}""",
-
     "city_page": """Sei un copywriter SEO esperto. Scrivi i contenuti per una CITY PAGE (pagina geo-targeting).
 Rispondi SOLO con JSON valido, nessun testo extra, nessun markdown.
 
@@ -124,6 +100,46 @@ JSON con questa struttura esatta:
 }}"""
 }
 
+# --- FUNZIONI DI SUPPORTO ---
 
 def build_company_block(company: dict) -> str:
-    services = ", ".join
+    """Trasforma il dizionario azienda in un blocco di testo per il prompt."""
+    services = ", ".join(company.get("services", []))
+    return f"""
+    Nome: {company.get('name', 'N/D')}
+    Settore: {company.get('industry', 'N/D')}
+    Servizi: {services}
+    Tone of Voice: {company.get('tone', 'Professionale e autorevole')}
+    """
+
+def generate_page_content(api_key, model, page_type, context_data):
+    """
+    Invia il prompt ad Anthropic e restituisce il contenuto generato.
+    """
+    client = anthropic.Anthropic(api_key=api_key)
+    
+    # Seleziona il prompt base
+    prompt_template = PAGE_PROMPTS.get(page_type, PAGE_PROMPTS["home"])
+    
+    # Formatta il prompt con i dati di contesto
+    # Se context_data contiene blocchi complessi, assicuriamoci che siano stringhe
+    full_prompt = prompt_template.format(**context_data)
+    
+    try:
+        response = client.messages.create(
+            model=model,
+            max_tokens=2500,
+            temperature=0.7,
+            messages=[
+                {"role": "user", "content": full_prompt}
+            ]
+        )
+        
+        raw_text = response.content[0].text
+        
+        # Pulizia JSON
+        clean_json = re.sub(r'```json\s*|\s*```', '', raw_text).strip()
+        return json.loads(clean_json)
+        
+    except Exception as e:
+        raise Exception(f"Errore durante la generazione AI: {str(e)}")
