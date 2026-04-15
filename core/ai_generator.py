@@ -2,10 +2,11 @@ import anthropic
 import json
 import re
 
+# --- I TUOI PROMPT ---
 PAGE_PROMPTS = {
     "home": """Scrivi contenuti HOME PAGE. Rispondi SOLO JSON:
 {{
-  "meta_title": "{company_block} - {geo_block}",
+  "meta_title": "SEO Title",
   "meta_description": "Descrizione SEO",
   "h1": "Headline",
   "intro": "Intro",
@@ -49,21 +50,39 @@ PAGE_PROMPTS = {
 }}"""
 }
 
+# --- LE FUNZIONI DI SUPPORTO ---
+
 def build_company_block(company: dict) -> str:
     if not company: return "N/D"
     s = company.get("services", [])
     s_str = ", ".join(s) if isinstance(s, list) else str(s)
     return f"Nome: {company.get('name', 'N/D')}\nServizi: {s_str}"
 
-def generate_page_content(api_key, model, page_type, context_data, company=None, **kwargs):
+def generate_page_content(api_key, **kwargs):
+    """
+    Versione ultra-flessibile: accetta la api_key e pesca tutto il resto dai kwargs
+    """
+    model = kwargs.get('model', 'claude-3-5-sonnet-20240620')
+    page_type = kwargs.get('page_type', 'home')
+    context_data = kwargs.get('context_data', {})
+    company = kwargs.get('company')
+    
     client = anthropic.Anthropic(api_key=api_key)
     prompt_template = PAGE_PROMPTS.get(page_type, PAGE_PROMPTS["home"])
+    
     if company:
         context_data["company_block"] = build_company_block(company)
-    if "geo_context" in kwargs and kwargs["geo_context"]:
+    
+    if "geo_context" in kwargs and kwargs.get("geo_context"):
         context_data["geo_block"] = str(kwargs["geo_context"])
-    defaults = {"company_block": "N/D", "geo_block": "", "existing_block": "", "service_name": "Servizio", "city": "Città", "region": "", "climate": "N/D", "pois": "N/D", "services": ""}
+        
+    defaults = {
+        "company_block": "N/D", "geo_block": "", "existing_block": "", 
+        "service_name": "Servizio", "city": "Città", "region": "", 
+        "climate": "N/D", "pois": "N/D", "services": ""
+    }
     full_context = {**defaults, **context_data}
+    
     try:
         response = client.messages.create(
             model=model,
