@@ -7,9 +7,24 @@ import io
 import time
 from urllib.parse import urlparse
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-# --- Config prezzi (unico posto da aggiornare) ---
+# --- FIX PERCORSI PER STREAMLIT CLOUD ---
+# Forza Python a guardare nella cartella principale del progetto
+root_path = os.path.dirname(os.path.abspath(__file__))
+if root_path not in sys.path:
+    sys.path.insert(0, root_path)
+
+# --- IMPORT MODULI LOCALI ---
+# Li mettiamo qui per essere sicuri che il fix del percorso sia già attivo
+try:
+    from core.scraper import scrape_multiple
+    from core.geo_enricher import get_city_context, get_suggested_cities
+    from core.ai_generator import generate_page_content
+    from core.output_builder import assemble_page_output, save_client_output
+except ImportError as e:
+    st.error(f"Errore critico di importazione: {e}")
+    st.stop()
+
+# --- CONFIG PREZZI ---
 PRICING = {
     "input_per_token": 0.00000025,
     "output_per_token": 0.00000125,
@@ -17,42 +32,20 @@ PRICING = {
 AVG_INPUT_TOKENS = 450
 AVG_OUTPUT_TOKENS = 900
 
-# --- Carica API key da st.secrets se disponibile (NON scrivere in os.environ globale) ---
+# --- GESTIONE API KEY ---
 _secrets_key = None
 try:
     _secrets_key = st.secrets["ANTHROPIC_API_KEY"]
 except Exception:
     pass
 
-from core.scraper import scrape_multiple
-from core.geo_enricher import get_city_context, get_suggested_cities
-from core.ai_generator import generate_page_content
-from core.output_builder import assemble_page_output, save_client_output
-
+# --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(
     page_title="SEO/GEO Factory",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-st.markdown("""
-<style>
-.stApp { max-width: 1200px; margin: 0 auto; }
-.step-header { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
-.cost-badge {
-    background: #e8f5e9; color: #2e7d32;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.85rem; font-weight: 500;
-    display: inline-block; margin: 4px 0;
-}
-.warning-badge {
-    background: #fff3e0; color: #e65100;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.85rem;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # --- Inizializzazione session_state completa ---
 defaults = {
