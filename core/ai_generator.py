@@ -104,42 +104,12 @@ JSON con questa struttura esatta:
 
 def build_company_block(company: dict) -> str:
     """Trasforma il dizionario azienda in un blocco di testo per il prompt."""
-    services = ", ".join(company.get("services", []))
+    if not company:
+        return "Dati azienda non disponibili."
+    
+    services_list = company.get("services", [])
+    services_str = ", ".join(services_list) if isinstance(services_list, list) else str(services_list)
+    
     return f"""
     Nome: {company.get('name', 'N/D')}
-    Settore: {company.get('industry', 'N/D')}
-    Servizi: {services}
-    Tone of Voice: {company.get('tone', 'Professionale e autorevole')}
-    """
-
-def generate_page_content(api_key, model, page_type, context_data):
-    """
-    Invia il prompt ad Anthropic e restituisce il contenuto generato.
-    """
-    client = anthropic.Anthropic(api_key=api_key)
-    
-    # Seleziona il prompt base
-    prompt_template = PAGE_PROMPTS.get(page_type, PAGE_PROMPTS["home"])
-    
-    # Formatta il prompt con i dati di contesto
-    # Se context_data contiene blocchi complessi, assicuriamoci che siano stringhe
-    full_prompt = prompt_template.format(**context_data)
-    
-    try:
-        response = client.messages.create(
-            model=model,
-            max_tokens=2500,
-            temperature=0.7,
-            messages=[
-                {"role": "user", "content": full_prompt}
-            ]
-        )
-        
-        raw_text = response.content[0].text
-        
-        # Pulizia JSON
-        clean_json = re.sub(r'```json\s*|\s*```', '', raw_text).strip()
-        return json.loads(clean_json)
-        
-    except Exception as e:
-        raise Exception(f"Errore durante la generazione AI: {str(e)}")
+    Settore
